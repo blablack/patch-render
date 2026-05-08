@@ -1,0 +1,10 @@
+# Files
+
+# Folders
+
+.cache/
+.vscode/
+.claude/
+build/
+plugins/
+output/
