@@ -1,5 +1,3 @@
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
-
 pybind11_add_module(patch_render MODULE
     Bindings.cpp
     PluginLoader.cpp

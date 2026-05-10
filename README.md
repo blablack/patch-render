@@ -1,30 +1,42 @@
 # patch-render
 
-Headless CLI tool that renders a VST3 instrument plugin to a WAV file, offline and faster than realtime. Accepts a JSON config on stdin, writes a WAV file to disk.
+Python extension module (pybind11) that renders a VST3 instrument plugin to a WAV file, offline and faster than realtime.
 
-**Why it exists:** Python's [pedalboard](https://github.com/spotify/pedalboard) library never sets `kTempoValid` in the VST3 `ProcessContext`, so tempo-synced delays and LFOs inside plugins run at their internal defaults regardless of your intended BPM. patch-render fixes this with a proper `AudioPlayHead` implementation, making it a drop-in subprocess replacement for pedalboard's render step.
+**Why it exists:** Python's [pedalboard](https://github.com/spotify/pedalboard) library never sets `kTempoValid` in the VST3 `ProcessContext`, so tempo-synced delays and LFOs inside plugins run at their internal defaults regardless of your intended BPM. patch-render fixes this with a proper `AudioPlayHead` implementation.
+
+## Installation
+
+Download the wheel for your platform from the [Releases](../../releases) page and install it:
+
+```bash
+pip install patch_render-0.2.1-cp314-cp314-manylinux_2_28_x86_64.whl
+```
 
 ## Usage
 
-```bash
-echo '{
-  "plugin":      "/path/to/Synth.vst3",
-  "raw_state":   "TVNTbgAA...",
-  "bpm":         120.0,
-  "sample_rate": 44100,
-  "duration":    4.0,
-  "output":      "/tmp/render.wav",
-  "midi": [
-    {"type": "note_on",  "pitch": 60, "vel": 100, "time": 0.0},
-    {"type": "note_off", "pitch": 60, "vel":   0, "time": 2.0}
-  ],
-  "fx_chain": [
-    {"plugin": "/path/to/TapeEmulator.vst3", "raw_state": "..."}
-  ]
-}' | patch-render
+```python
+import patch_render
+
+patch_render.render({
+    "plugin":      "/path/to/Synth.vst3",
+    "raw_state":   "TVNTbgAA...",
+    "bpm":         120.0,
+    "sample_rate": 44100,
+    "duration":    4.0,
+    "output":      "/tmp/render.wav",
+    "midi": [
+        {"type": "note_on",  "pitch": 60, "vel": 100, "time": 0.0},
+        {"type": "note_off", "pitch": 60, "vel":   0, "time": 2.0},
+    ],
+    "fx_chain": [
+        {"plugin": "/path/to/TapeEmulator.vst3", "raw_state": "..."}
+    ],
+})
 ```
 
-### JSON fields
+Raises `RuntimeError` on plugin load or render failure, `ValueError` on a bad config dict.
+
+### Config fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -39,48 +51,16 @@ echo '{
 
 `raw_state` is produced by [patch-probe](https://github.com/blablack/patch-probe). `fx_chain` is optional — omit it for instrument-only renders.
 
-### Exit codes
-
-| Code | Meaning |
-|------|---------|
-| `0` | Success |
-| `1` | Bad JSON or missing required field |
-| `3` | Plugin load or render failure |
-
-All diagnostic messages go to stderr; stdout is silent.
-
-### Python integration
-
-```python
-import subprocess, json, wave
-
-config = {
-    "plugin":      "/path/to/Synth.vst3",
-    "raw_state":   preset_yaml["source"]["raw_state"],
-    "bpm":         120.0,
-    "sample_rate": 44100,
-    "duration":    4.0,
-    "output":      "/tmp/render.wav",
-    "midi": [
-        {"type": "note_on",  "pitch": 60, "vel": 100, "time": 0.0},
-        {"type": "note_off", "pitch": 60, "vel":   0, "time": 2.0},
-    ],
-}
-
-result = subprocess.run(["patch-render"], input=json.dumps(config), capture_output=True, text=True)
-if result.returncode != 0:
-    raise RuntimeError(result.stderr)
-```
-
 ## Building from source
 
-Requires a C++17 compiler, CMake 3.22+, and Ninja. On Linux, install the JUCE system dependencies first:
+Requires a C++17 compiler, CMake 3.22+, Ninja, and `python3.14-dev`. On Linux, install the JUCE system dependencies first:
 
 ```bash
 sudo apt-get install -y \
+    python3.14-dev \
     libasound2-dev libfreetype6-dev libx11-dev libxcomposite-dev \
     libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev \
-    libxrender-dev libwebkit2gtk-4.1-dev libglu1-mesa-dev
+    libxrender-dev libglu1-mesa-dev
 ```
 
 ```bash
@@ -88,7 +68,14 @@ git clone --recurse-submodules https://github.com/blablack/patch-render
 cd patch-render
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C build
-# binary: build/src/patch-render_artefacts/Release/patch-render
+# extension module: build/src/patch_render_artefacts/Release/patch_render.cpython-314-x86_64-linux-gnu.so
+```
+
+Or build a wheel directly:
+
+```bash
+pip install scikit-build-core pybind11
+pip wheel . -w dist --no-build-isolation
 ```
 
 ## Ecosystem
@@ -97,8 +84,4 @@ patch-render is part of a three-tool pipeline:
 
 1. **[patch-probe](https://github.com/blablack/patch-probe)** — extracts VST3 preset state to YAML (`raw_state` blob + parameter values)
 2. **patch-render** — renders a preset + MIDI sequence to WAV with correct BPM sync
-3. **patch-press** — Python orchestrator that calls patch-render, analyses the audio, and exports Deluge-ready WAV + XML sample sets
-
-## Download
-
-Pre-built binaries for Linux, macOS, and Windows are available on the [Releases](../../releases) page.
+3. **patch-press** — Python orchestrator that imports patch-render directly, analyses the audio, and exports Deluge-ready WAV + XML sample sets

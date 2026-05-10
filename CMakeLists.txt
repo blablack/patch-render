@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22...3.29)
 project(patch-render
     LANGUAGES C CXX
     VERSION 0.1.0
-    DESCRIPTION "Headless VST3 offline renderer"
+    DESCRIPTION "VST3 offline renderer Python extension"
 )
 
 set(CMAKE_CXX_STANDARD 17)
