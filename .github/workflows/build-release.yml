@@ -16,7 +16,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: pypa/cibuildwheel@v2.22
+      - uses: pypa/cibuildwheel@v2
         env:
           CIBW_BUILD_VERBOSITY: 1
 
@@ -32,7 +32,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: pypa/cibuildwheel@v2.22
+      - uses: pypa/cibuildwheel@v2
         env:
           CIBW_BUILD_VERBOSITY: 1
 
