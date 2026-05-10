@@ -9,7 +9,7 @@ Python extension module (pybind11) that renders a VST3 instrument plugin to a WA
 Download the wheel for your platform from the [Releases](../../releases) page and install it:
 
 ```bash
-pip install patch_render-0.2.1-cp314-cp314-manylinux_2_28_x86_64.whl
+pip install patch_render-0.2.0-cp314-cp314-manylinux_2_28_x86_64.whl
 ```
 
 ## Usage
