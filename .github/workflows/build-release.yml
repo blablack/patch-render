@@ -16,7 +16,9 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: pypa/cibuildwheel@v2
+      - run: pip install cibuildwheel
+
+      - run: python -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD_VERBOSITY: 1
 
@@ -32,7 +34,9 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: pypa/cibuildwheel@v2
+      - run: pip install cibuildwheel
+
+      - run: python -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD_VERBOSITY: 1
 
