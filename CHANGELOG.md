@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.2.0] - 2026-05-10
+### Changed
+- Converted from a standalone CLI binary to a pybind11 Python extension module (`patch_render.cpython-*.so`)
+- `patch_render.render(dict)` replaces stdin JSON — same field schema, callable directly from Python without subprocess overhead
+- cibuildwheel CI: produces `manylinux_2_28` Linux wheels and macOS arm64/x86_64 wheels on tag push, attached to GitHub releases
+
 ## [v0.1.0] - 2026-05-08
 ### Added
 - Initial release: headless VST3 offline renderer

@@ -17,4 +17,19 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
 endif()
 
 add_subdirectory(lib/JUCE)
+
+# Use pybind11 from build env (installed by scikit-build-core) if available,
+# otherwise fetch it for plain cmake -B build dev workflows.
+find_package(pybind11 QUIET)
+if(NOT pybind11_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+        pybind11
+        GIT_REPOSITORY https://github.com/pybind/pybind11.git
+        GIT_TAG        v2.13.6
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(pybind11)
+endif()
+
 add_subdirectory(src)
