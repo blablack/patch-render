@@ -39,7 +39,7 @@ void PluginLoader::restoreState(juce::AudioPluginInstance& plugin, const juce::S
 {
     if (base64State.isEmpty())
         return;
-    juce::MemoryBlock state;
-    state.fromBase64Encoding(base64State);
-    plugin.setStateInformation(state.getData(), (int)state.getSize());
+    juce::MemoryOutputStream out;
+    juce::Base64::convertFromBase64(out, base64State);
+    plugin.setStateInformation(out.getData(), (int)out.getDataSize());
 }

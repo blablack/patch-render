@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.2.1] - 2026-05-10
+### Changed
+- patch-probe writes standard RFC 4648 base64, update decoding (same as Spotify PedalBoard)
+
 ## [v0.2.0] - 2026-05-10
 ### Changed
 - Converted from a standalone CLI binary to a pybind11 Python extension module (`patch_render.cpython-*.so`)
