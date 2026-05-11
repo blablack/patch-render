@@ -5,23 +5,24 @@
 
 bool Renderer::render(const RenderConfig& config, juce::String& errorOut)
 {
+    // Play head is created first and passed into load() so plugins receive the correct
+    // BPM before prepareToPlay(), matching how DAWs initialise hosted plugins.
+    RenderPlayHead playHead(config.bpm, config.sampleRate);
+
     PluginLoader loader;
-    auto plugin = loader.load(config.pluginPath, config.sampleRate, 512, errorOut);
+    auto plugin = loader.load(config.pluginPath, config.sampleRate, 512, errorOut, &playHead);
     if (!plugin)
         return false;
 
     if (config.rawState.isNotEmpty())
         PluginLoader::restoreState(*plugin, config.rawState);
 
-    RenderPlayHead playHead(config.bpm, config.sampleRate);
-    plugin->setPlayHead(&playHead);
-
     std::vector<std::unique_ptr<juce::AudioPluginInstance>> fxPlugins;
     for (int i = 0; i < (int)config.fxChain.size(); ++i)
     {
         const auto& fx = config.fxChain[i];
         juce::String fxError;
-        auto fxPlugin = loader.load(fx.pluginPath, config.sampleRate, 512, fxError);
+        auto fxPlugin = loader.load(fx.pluginPath, config.sampleRate, 512, fxError, &playHead);
         if (!fxPlugin)
         {
             errorOut = "FX[" + juce::String(i) + "] failed to load (" + fx.pluginPath + "): " + fxError;
@@ -31,7 +32,6 @@ bool Renderer::render(const RenderConfig& config, juce::String& errorOut)
         fxPlugin->prepareToPlay(config.sampleRate, 512);
         if (fx.rawState.isNotEmpty())
             PluginLoader::restoreState(*fxPlugin, fx.rawState);
-        fxPlugin->setPlayHead(&playHead);
         fxPlugins.push_back(std::move(fxPlugin));
     }
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.2.2] - 2026-05-11
+### Fixed
+- BPM-synced delays (e.g. Odin2) produced a pitch-sweep artifact at the start of every render. The play head is now set before `prepareToPlay()`, matching DAW plugin hosting order. Previously the play head arrived after init, so delays saw no tempo during `prepareToPlay` and smoothly interpolated to the correct delay time on the first `processBlock`, causing the audible sweep.
+
 ## [v0.2.1] - 2026-05-10
 ### Changed
 - patch-probe writes standard RFC 4648 base64, update decoding (same as Spotify PedalBoard)

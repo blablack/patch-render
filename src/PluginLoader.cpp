@@ -4,7 +4,8 @@ std::unique_ptr<juce::AudioPluginInstance> PluginLoader::load(
     const juce::String& pluginPath,
     double sampleRate,
     int blockSize,
-    juce::String& errorOut)
+    juce::String& errorOut,
+    juce::AudioPlayHead* playHead)
 {
     juce::addDefaultFormatsToManager(formatManager_);
 
@@ -31,6 +32,8 @@ std::unique_ptr<juce::AudioPluginInstance> PluginLoader::load(
         return nullptr;
 
     plugin->setPlayConfigDetails(0, 2, sampleRate, blockSize);
+    if (playHead)
+        plugin->setPlayHead(playHead);
     plugin->prepareToPlay(sampleRate, blockSize);
     return plugin;
 }

@@ -9,7 +9,8 @@ public:
         const juce::String& pluginPath,
         double sampleRate,
         int blockSize,
-        juce::String& errorOut);
+        juce::String& errorOut,
+        juce::AudioPlayHead* playHead = nullptr);
 
     static void restoreState(juce::AudioPluginInstance& plugin, const juce::String& base64State);
 
