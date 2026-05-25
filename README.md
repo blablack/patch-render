@@ -1,6 +1,6 @@
 # patch-render
 
-Python extension module (pybind11) that renders a VST3 instrument plugin to a WAV file, offline and faster than realtime.
+Python extension module (pybind11) that renders VST3 and CLAP instrument plugins to WAV files, offline and faster than realtime.
 
 **Why it exists:** Python's [pedalboard](https://github.com/spotify/pedalboard) library never sets `kTempoValid` in the VST3 `ProcessContext`, so tempo-synced delays and LFOs inside plugins run at their internal defaults regardless of your intended BPM. patch-render fixes this with a proper `AudioPlayHead` implementation.
 
@@ -36,6 +36,30 @@ patch_render.render({
 
 Raises `RuntimeError` on plugin load or render failure, `ValueError` on a bad config dict.
 
+### CLAP
+
+```python
+import patch_render
+
+# Discover plugin IDs inside a .clap bundle
+plugins = patch_render.list_clap_plugins("/path/to/Plugin.clap")
+# [{"id": "org.example.mysynth", "name": "My Synth", "version": "1.0.0"}, ...]
+
+patch_render.render_clap({
+    "plugin":      "/path/to/Plugin.clap",
+    "plugin_id":   "org.example.mysynth",
+    "raw_state":   "...",
+    "bpm":         120.0,
+    "sample_rate": 48000.0,
+    "duration":    4.0,
+    "output":      "/tmp/render.wav",
+    "midi": [
+        {"type": "note_on",  "pitch": 60, "vel": 100, "time": 0.0},
+        {"type": "note_off", "pitch": 60, "vel":   0, "time": 2.0},
+    ],
+})
+```
+
 ### Config fields
 
 | Field | Type | Default | Description |
@@ -50,6 +74,19 @@ Raises `RuntimeError` on plugin load or render failure, `ValueError` on a bad co
 | `fx_chain` | array | `[]` | Serial FX plugins applied after the instrument; each has `plugin` and optional `raw_state` |
 
 `raw_state` is produced by [patch-probe](https://github.com/blablack/patch-probe). `fx_chain` is optional — omit it for instrument-only renders.
+
+### CLAP config fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `plugin` | string | required | Absolute path to the `.clap` bundle |
+| `plugin_id` | string | required | Plugin ID from `list_clap_plugins()` |
+| `output` | string | required | Absolute path for the output WAV file |
+| `duration` | float | required | Total render duration in seconds |
+| `raw_state` | string | `""` | Base64 state blob |
+| `bpm` | float | `120.0` | Passed to the plugin via CLAP transport events |
+| `sample_rate` | float | `48000.0` | |
+| `midi` | array | `[]` | Same schema as VST3 (`type`, `pitch`, `vel`, `time`) |
 
 ## Building from source
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.3.0] - 2026-05-25
+### Added
+- CLAP plugin support via two new Python functions:
+  - `patch_render.render_clap(payload)` — renders a CLAP instrument to WAV. Config fields mirror the VST3 `render()` schema, with `plugin_id` (required, string) added to select a specific plugin within a `.clap` bundle.
+  - `patch_render.list_clap_plugins(plugin_path)` — enumerates all plugins in a `.clap` file; returns a list of dicts with `id`, `name`, `vendor`, `description`.
+- `ClapHost`: minimal `clap_host_t` implementation with stub callbacks sufficient for offline rendering; exposes `log`, `thread-check`, `state`, and `params` extensions.
+- `ClapRenderer`: block render loop (512 samples/block) with a `CLAP_EVENT_TRANSPORT` sent on every block carrying BPM, beat-position, second-position, and 4/4 time signature — equivalent to the VST3 `RenderPlayHead` fix for tempo-synced plugins. Output channel count is queried via `CLAP_EXT_AUDIO_PORTS` and downmixed to stereo when the plugin exposes more than two channels. State is restored from a base64 blob via `CLAP_EXT_STATE`.
+
+### Fixed
+- Segfault on process exit when Python finalizes the interpreter. The `ScopedJuceInitialiser_GUI` global was being destroyed during `.so` unload (after `Py_Finalize`), at which point JUCE's `shutdownJuce_GUI()` could no longer safely stop the message thread. Fixed by registering a Python `atexit` handler at module init time that explicitly resets the initializer before module teardown.
+
 ## [v0.2.2] - 2026-05-11
 ### Fixed
 - BPM-synced delays (e.g. Odin2) produced a pitch-sweep artifact at the start of every render. The play head is now set before `prepareToPlay()`, matching DAW plugin hosting order. Previously the play head arrived after init, so delays saw no tempo during `prepareToPlay` and smoothly interpolated to the correct delay time on the first `processBlock`, causing the audible sweep.

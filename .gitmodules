@@ -2,3 +2,6 @@
 	path = lib/JUCE
 	url = https://github.com/juce-framework/JUCE.git
 	branch = master
+[submodule "lib/clap"]
+	path = lib/clap
+	url = https://github.com/free-audio/clap.git

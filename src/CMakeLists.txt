@@ -1,5 +1,7 @@
 pybind11_add_module(patch_render MODULE
     Bindings.cpp
+    ClapHost.cpp
+    ClapRenderer.cpp
     PluginLoader.cpp
     Renderer.cpp
 )
@@ -8,6 +10,10 @@ pybind11_add_module(patch_render MODULE
 # _juce_initialise_target is private but stable across JUCE 7/8 (pinned 8.0.12).
 _juce_initialise_target(patch_render PRODUCT_NAME "patch_render")
 juce_generate_juce_header(patch_render)
+
+target_include_directories(patch_render PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/clap/include
+)
 
 target_compile_features(patch_render PRIVATE cxx_std_17)
 
@@ -24,6 +30,7 @@ target_link_libraries(patch_render PRIVATE
     juce::juce_audio_formats
     juce::juce_gui_basics
     juce::juce_core
+    ${CMAKE_DL_LIBS}
 )
 
 install(TARGETS patch_render DESTINATION .)
