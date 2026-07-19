@@ -11,6 +11,8 @@
 
 #include <algorithm>
 #include <cstring>
+#include <mutex>
+#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -79,34 +81,56 @@ struct InputEventList
     }
 };
 
-} // namespace
-
 //==============================================================================
-// ClapRenderer::render
+// Process-lifetime cache of the loaded CLAP library + entry + factory.
+//
+// CLAP's clap_entry.init()/deinit() are meant to bracket the library's lifetime
+// in the process, NOT each render. u-he Diva builds and tears down its GLOBAL
+// machinery there (thread pool, Support cache, an internal global mutex); running
+// that once per render — ~1270x over a preset bank — eventually leaks that mutex
+// and deadlocks the whole process (gdb-confirmed; see patch-press memory
+// project_scan_fork_deadlock). So the library is initialised ONCE per process and
+// cached here. Only the plugin INSTANCE is created/destroyed per render (in
+// render()), which is what keeps each render's audio independent — a previous
+// render's voices and delay tail die with its instance.
 //==============================================================================
-bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
+struct LoadedEntry
 {
-    // --- Load .clap shared library ---
-    void* lib = dlopen(config.pluginPath.c_str(), RTLD_LOCAL | RTLD_LAZY);
+    void*                        lib     { nullptr };
+    const clap_plugin_entry_t*   entry   { nullptr };
+    const clap_plugin_factory_t* factory { nullptr };
+};
+
+static const LoadedEntry* getOrLoadEntry(const std::string& pluginPath, std::string& errorOut)
+{
+    static std::mutex                                   mtx;
+    static std::unordered_map<std::string, LoadedEntry> cache;
+    std::lock_guard<std::mutex> lock(mtx);
+
+    auto it = cache.find(pluginPath);
+    if (it != cache.end())
+        return &it->second;
+
+    void* lib = dlopen(pluginPath.c_str(), RTLD_LOCAL | RTLD_LAZY);
     if (!lib)
     {
         errorOut = std::string("dlopen failed: ") + dlerror();
-        return false;
+        return nullptr;
     }
 
     auto* entry = static_cast<const clap_plugin_entry_t*>(dlsym(lib, "clap_entry"));
     if (!entry)
     {
         dlclose(lib);
-        errorOut = "No clap_entry symbol in: " + config.pluginPath;
-        return false;
+        errorOut = "No clap_entry symbol in: " + pluginPath;
+        return nullptr;
     }
 
-    if (!entry->init(config.pluginPath.c_str()))
+    if (!entry->init(pluginPath.c_str()))
     {
         dlclose(lib);
-        errorOut = "clap_entry.init() failed for: " + config.pluginPath;
-        return false;
+        errorOut = "clap_entry.init() failed for: " + pluginPath;
+        return nullptr;
     }
 
     auto* factory = static_cast<const clap_plugin_factory_t*>(
@@ -115,11 +139,36 @@ bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
     {
         entry->deinit();
         dlclose(lib);
-        errorOut = "No plugin factory in: " + config.pluginPath;
-        return false;
+        errorOut = "No plugin factory in: " + pluginPath;
+        return nullptr;
     }
 
-    // --- Find plugin by ID ---
+    auto res = cache.emplace(pluginPath, LoadedEntry{ lib, entry, factory });
+    return &res.first->second;
+}
+
+} // namespace
+
+//==============================================================================
+// ClapRenderer::render
+//==============================================================================
+bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
+{
+    // --- Load (or reuse) the CLAP library for this plugin path ---
+    // Initialised once per process and cached; NOT per render (see getOrLoadEntry
+    // above for why: per-render clap_entry.init()/deinit() churns Diva's global
+    // state and eventually deadlocks). Each render still gets a fresh plugin
+    // instance below, so a previous render's audio never leaks into this one.
+    std::string loadErr;
+    const LoadedEntry* le = getOrLoadEntry(config.pluginPath, loadErr);
+    if (!le)
+    {
+        errorOut = loadErr;
+        return false;
+    }
+    const clap_plugin_factory_t* factory = le->factory;
+
+    // --- Find plugin by ID (a fresh instance for every render) ---
     ClapHost host;
     const clap_plugin_t* plugin = nullptr;
     const uint32_t count = factory->get_plugin_count(factory);
@@ -135,8 +184,6 @@ bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
 
     if (!plugin)
     {
-        entry->deinit();
-        dlclose(lib);
         errorOut = "Plugin ID not found: " + config.pluginId;
         return false;
     }
@@ -144,8 +191,6 @@ bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
     if (!plugin->init(plugin))
     {
         plugin->destroy(plugin);
-        entry->deinit();
-        dlclose(lib);
         errorOut = "plugin->init() failed";
         return false;
     }
@@ -166,8 +211,6 @@ bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
     if (!plugin->activate(plugin, config.sampleRate, 1, (uint32_t)blockSize))
     {
         plugin->destroy(plugin);
-        entry->deinit();
-        dlclose(lib);
         errorOut = "plugin->activate() failed";
         return false;
     }
@@ -194,8 +237,6 @@ bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
     {
         plugin->deactivate(plugin);
         plugin->destroy(plugin);
-        entry->deinit();
-        dlclose(lib);
         errorOut = "plugin->start_processing() failed";
         return false;
     }
@@ -210,8 +251,6 @@ bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
         plugin->stop_processing(plugin);
         plugin->deactivate(plugin);
         plugin->destroy(plugin);
-        entry->deinit();
-        dlclose(lib);
         errorOut = "Cannot write to: " + config.outputWav;
         return false;
     }
@@ -226,8 +265,6 @@ bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
         plugin->stop_processing(plugin);
         plugin->deactivate(plugin);
         plugin->destroy(plugin);
-        entry->deinit();
-        dlclose(lib);
         errorOut = "Cannot create WAV writer for: " + config.outputWav;
         return false;
     }
@@ -325,12 +362,12 @@ bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
         position += framesThisBlock;
     }
 
-    // --- Cleanup (always reached) ---
+    // --- Cleanup: destroy the instance only. The library/entry stay initialised
+    // (cached for the process lifetime — see getOrLoadEntry) so Diva's global state
+    // is built once instead of churned per render. ---
     plugin->stop_processing(plugin);
     plugin->deactivate(plugin);
     plugin->destroy(plugin);
-    entry->deinit();
-    dlclose(lib);
 
     return errorOut.empty();
 }
