@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.3.1] - 2026-07-19
+### Fixed
+- Deadlock when rendering many presets in one process: `ClapRenderer` ran `clap_entry.init()`/`deinit()` per render, churning the plugin's global state until Diva leaked an internal mutex (~1,270 renders in). Now the library is loaded and initialized once per process and cached; only the plugin instance is created/destroyed per render, so renders stay independent.
+
 ## [v0.3.0] - 2026-05-25
 ### Added
 - CLAP plugin support via two new Python functions:
