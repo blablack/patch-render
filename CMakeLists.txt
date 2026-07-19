@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22...3.29)
 
 project(patch-render
     LANGUAGES C CXX
-    VERSION 0.2.2
+    VERSION 0.3.1
     DESCRIPTION "VST3 offline renderer Python extension"
 )
 
