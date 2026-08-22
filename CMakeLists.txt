@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.22...3.29)
 
 project(patch-render
     LANGUAGES C CXX
-    VERSION 0.3.1
-    DESCRIPTION "VST3 offline renderer Python extension"
+    VERSION 0.3.2
+    DESCRIPTION "VST3/CLAP offline renderer Python extension"
 )
 
 set(CMAKE_CXX_STANDARD 17)
