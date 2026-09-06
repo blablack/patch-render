@@ -111,8 +111,8 @@ ninja -C build
 Or build a wheel directly:
 
 ```bash
-pip install scikit-build-core pybind11
-pip wheel . -w dist --no-build-isolation
+uv pip install scikit-build-core pybind11
+uv build --wheel --no-build-isolation -o dist
 ```
 
 ## Ecosystem
