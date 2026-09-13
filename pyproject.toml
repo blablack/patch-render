@@ -11,6 +11,14 @@ description = "Headless VST3 offline renderer (Python extension)"
 [tool.scikit-build]
 metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
 
+[tool.uv]
+# patch_render itself is a local compiled artifact (CMake/Ninja + JUCE, not something
+# uv builds/installs) — `uv sync` should only manage the dev group's venv below.
+package = false
+
+[dependency-groups]
+dev = ["pyyaml>=6.0"]
+
 [tool.setuptools_scm]
 fallback_version = "0.0.0"
 
