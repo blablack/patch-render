@@ -4,29 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build
 
-Requires C++17, CMake 3.22+, Ninja, `python3.14-dev`, and JUCE system dependencies (ALSA, X11, FreeType on Linux).
+Requires C++17, CMake 3.22+, Ninja, `python3.14-dev`, and JUCE system dependencies (ALSA, X11, FreeType on Linux). `just` and `uv` drive the dev workflow — run `just` (no args) to list all recipes.
 
 ```bash
 # First time (JUCE + CLAP submodules must be present)
-git submodule update --init --recursive
+just submodules
 
-# Configure
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-
-# Build
-ninja -C build
+# Configure + build (configures automatically if build/ doesn't exist yet)
+just build
 
 # Extension module lands at:
 build/src/patch_render_artefacts/Release/patch_render.cpython-314-x86_64-linux-gnu.so
 ```
 
+Equivalent raw commands: `cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release` then `ninja -C build`.
+
 Alternatively, build a wheel with scikit-build-core (same path cibuildwheel uses):
 
 ```bash
-uv build --wheel --no-build-isolation -o /tmp/wheels
+just wheel                # → /tmp/wheels
+just wheel dist/          # or any other output dir
 ```
 
 pybind11 is fetched automatically via FetchContent if not already installed; when building via scikit-build-core it is provided through `build-system.requires`.
+
+`patch_render` itself is a compiled CMake/Ninja artifact — `uv`/`just sync` only manage a small dev-only venv (currently just `pyyaml`, for `scripts/render_yaml.py`; see `[tool.uv] package = false` in `pyproject.toml`), never the extension module itself. Run `just sync` once to create `.venv`, `just render <config.yaml>` to exercise `scripts/render_yaml.py` against the locally built extension (wires up `PYTHONPATH` for you), and `just lock`/`just upgrade [pkg]` to manage `uv.lock`.
 
 There is no automated test suite.
 
@@ -147,7 +149,7 @@ Google C++ style as base, with these overrides (enforced by `.clang-format`):
 - Column limit: 128
 - Brace style: Allman (opening brace on its own line)
 
-Run `clang-format -i src/*.cpp src/*.h` to format.
+Run `just fmt` (or `clang-format -i src/*.cpp src/*.h` directly) to format.
 
 ## Ecosystem context
 
