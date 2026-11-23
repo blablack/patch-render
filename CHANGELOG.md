@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- `render_clap()` accepts `fx_chain` (serial VST3 effects after the CLAP instrument), e.g. Diva -> a guitar-amp VST3. FX hosting moved into a shared `FxChain` helper used by both renderers.
+### Fixed
+- VST3 effects in `fx_chain` rendered silence when the effect has an input bus: `PluginLoader` configures every plugin as 0-in/2-out, which left the effect's input bus disabled. `FxChain` now sets an explicit stereo in/out bus layout.
+
 ## [v0.3.2] - 2026-08-22
 ### Added
 - Juce 9.0.1

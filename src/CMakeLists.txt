@@ -2,6 +2,7 @@ pybind11_add_module(patch_render MODULE
     Bindings.cpp
     ClapHost.cpp
     ClapRenderer.cpp
+    FxChain.cpp
     PluginLoader.cpp
     Renderer.cpp
 )

@@ -1,6 +1,7 @@
 #include "ClapRenderer.h"
 
 #include "ClapHost.h"
+#include "FxChain.h"
 
 #include <clap/clap.h>
 #include <clap/ext/audio-ports.h>
@@ -154,6 +155,15 @@ static const LoadedEntry* getOrLoadEntry(const std::string& pluginPath, std::str
 //==============================================================================
 bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
 {
+    juce::String errorOutJuce;
+    // --- Load the FX chain first so a bad FX path fails before any instrument work ---
+    FxChain fxChain;
+    if (!config.fxChain.empty() && !fxChain.load(config.fxChain, config.sampleRate, 512, nullptr, errorOutJuce))
+    {
+        errorOut = errorOutJuce.toStdString();
+        return false;
+    }
+
     // --- Load (or reuse) the CLAP library for this plugin path ---
     // Initialised once per process and cached; NOT per render (see getOrLoadEntry
     // above for why: per-render clap_entry.init()/deinit() churns Diva's global
@@ -352,6 +362,7 @@ bool ClapRenderer::render(const ClapRenderConfig& config, std::string& errorOut)
         juce::AudioBuffer<float> buf(2, (int)framesThisBlock);
         buf.copyFrom(0, 0, outPtrs[0], (int)framesThisBlock);
         buf.copyFrom(1, 0, outPtrs[std::min(1u, outChannels - 1)], (int)framesThisBlock);
+        fxChain.process(buf);
 
         if (!writer->writeFromAudioSampleBuffer(buf, 0, (int)framesThisBlock))
         {

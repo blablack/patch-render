@@ -9,4 +9,4 @@ CLAUDE.local.md
 build/
 plugins/
 output/
-.venv/
+.venv/build-fx/

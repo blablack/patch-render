@@ -70,7 +70,7 @@ patch_render.render_clap({
 
 Raises `RuntimeError` on plugin load or render failure. Raises `ValueError`/`std::invalid_argument` on bad config (missing required fields). JUCE is initialised once at `import patch_render` time (torn down via an `atexit` hook rather than the global's own destructor — see Architecture); `render()` and `render_clap()` calls are serialised against each other internally via one shared mutex.
 
-`fx_chain` is VST3-only — `render_clap()` has no FX chain support.
+`fx_chain` (serial VST3 effects) works for both `render()` and `render_clap()`; the hosting lives in `src/FxChain.h/cpp`. CLAP effects are not supported as FX.
 
 ## Architecture
 
@@ -138,7 +138,7 @@ patch_render.render_clap(dict)
 | `midi` | array | `[]` | Objects with `type` (`note_on`/`note_off`), `pitch`, `vel`, `time` (seconds) |
 | `fx_chain` | array | `[]` | Serial FX plugins: each has `plugin` (path) and `raw_state`; loaded with stereo in/out |
 
-**CLAP config dict schema:** same as above minus `fx_chain`, plus a required `plugin_id` (from `list_clap_plugins()`) and `sample_rate` defaulting to 48000.0 instead of 44100.0.
+**CLAP config dict schema:** same as above (including `fx_chain`, VST3 effects), plus a required `plugin_id` (from `list_clap_plugins()`) and `sample_rate` defaulting to 48000.0 instead of 44100.0.
 
 **PlayHead/transport timing convention (both pipelines):** the position reported for a block is the position at its *start*. For VST3, `advance()` is called *after* `processBlock()` returns. For CLAP, `song_pos_beats`/`song_pos_seconds` are computed from `position` *before* `plugin->process()` is called for that block. In both cases the plugin sees the correct beat position for the samples it's about to process — and in the VST3 case specifically, the playhead is attached before `prepareToPlay()` (not after), matching DAW plugin-hosting order; getting this backwards previously caused an audible pitch-sweep artifact on BPM-synced delays (fixed in v0.2.2).
 

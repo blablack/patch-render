@@ -15,6 +15,7 @@ struct ClapRenderConfig
     double sampleRate { 48000.0 };
     double durationSec{ 4.0 };
     std::vector<MidiEvent> midiEvents;
+    std::vector<FxPlugin> fxChain;   // serial VST3 effects after the instrument
 };
 
 class ClapRenderer

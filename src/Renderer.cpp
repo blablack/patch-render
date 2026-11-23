@@ -1,5 +1,6 @@
 #include "Renderer.h"
 
+#include "FxChain.h"
 #include "PluginLoader.h"
 #include "RenderPlayHead.h"
 
@@ -17,23 +18,9 @@ bool Renderer::render(const RenderConfig& config, juce::String& errorOut)
     if (config.rawState.isNotEmpty())
         PluginLoader::restoreState(*plugin, config.rawState);
 
-    std::vector<std::unique_ptr<juce::AudioPluginInstance>> fxPlugins;
-    for (int i = 0; i < (int)config.fxChain.size(); ++i)
-    {
-        const auto& fx = config.fxChain[i];
-        juce::String fxError;
-        auto fxPlugin = loader.load(fx.pluginPath, config.sampleRate, 512, fxError, &playHead);
-        if (!fxPlugin)
-        {
-            errorOut = "FX[" + juce::String(i) + "] failed to load (" + fx.pluginPath + "): " + fxError;
-            return false;
-        }
-        fxPlugin->setPlayConfigDetails(2, 2, config.sampleRate, 512);
-        fxPlugin->prepareToPlay(config.sampleRate, 512);
-        if (fx.rawState.isNotEmpty())
-            PluginLoader::restoreState(*fxPlugin, fx.rawState);
-        fxPlugins.push_back(std::move(fxPlugin));
-    }
+    FxChain fxChain;
+    if (!fxChain.load(config.fxChain, config.sampleRate, 512, &playHead, errorOut))
+        return false;
 
     juce::WavAudioFormat wavFormat;
     const juce::File outFile(config.outputWav);
@@ -77,9 +64,7 @@ bool Renderer::render(const RenderConfig& config, juce::String& errorOut)
 
         plugin->processBlock(buffer, midiBlock);
 
-        juce::MidiBuffer emptyMidi;
-        for (auto& fx : fxPlugins)
-            fx->processBlock(buffer, emptyMidi);
+        fxChain.process(buffer);
 
         playHead.advance(samplesThisBlock);
 

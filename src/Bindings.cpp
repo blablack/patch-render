@@ -19,6 +19,25 @@ namespace py = pybind11;
 static std::optional<juce::ScopedJuceInitialiser_GUI> g_juceInit;
 static std::mutex g_renderMutex;
 
+static std::vector<FxPlugin> fxChainFromDict(const py::dict& d)
+{
+    std::vector<FxPlugin> chain;
+    if (d.contains("fx_chain") && !d["fx_chain"].is_none())
+    {
+        for (const auto& item : d["fx_chain"].cast<py::list>())
+        {
+            auto fxd = item.cast<py::dict>();
+            FxPlugin fx;
+            fx.pluginPath = juce::String(fxd["plugin"].cast<std::string>());
+            if (fxd.contains("raw_state"))
+                fx.rawState = juce::String(fxd["raw_state"].cast<std::string>());
+            if (fx.pluginPath.isNotEmpty())
+                chain.push_back(std::move(fx));
+        }
+    }
+    return chain;
+}
+
 static ClapRenderConfig clapConfigFromDict(const py::dict& d)
 {
     ClapRenderConfig cfg;
@@ -61,6 +80,8 @@ static ClapRenderConfig clapConfigFromDict(const py::dict& d)
         std::sort(cfg.midiEvents.begin(), cfg.midiEvents.end(),
                   [](const MidiEvent& a, const MidiEvent& b) { return a.timeSec < b.timeSec; });
     }
+
+    cfg.fxChain = fxChainFromDict(d);
 
     return cfg;
 }
@@ -107,19 +128,7 @@ static RenderConfig configFromDict(const py::dict& d)
                   [](const MidiEvent& a, const MidiEvent& b) { return a.timeSec < b.timeSec; });
     }
 
-    if (d.contains("fx_chain") && !d["fx_chain"].is_none())
-    {
-        for (const auto& item : d["fx_chain"].cast<py::list>())
-        {
-            auto fxd = item.cast<py::dict>();
-            FxPlugin fx;
-            fx.pluginPath = juce::String(fxd["plugin"].cast<std::string>());
-            if (fxd.contains("raw_state"))
-                fx.rawState = juce::String(fxd["raw_state"].cast<std::string>());
-            if (fx.pluginPath.isNotEmpty())
-                cfg.fxChain.push_back(std::move(fx));
-        }
-    }
+    cfg.fxChain = fxChainFromDict(d);
 
     return cfg;
 }
